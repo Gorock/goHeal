@@ -13,15 +13,16 @@ import (
 const (
 	dockerSock   = "DOCKER_SOCK"
 	healStart    = "HEAL_START_PERIOD"
-	healinterval = "HEAL_INTERVAL"
+	healInterval = "HEAL_INTERVAL"
 )
 
 type container struct {
 	Id string
 }
 
-func killContainers(url string) {
-	resp, err := http.Get(url + "/v1.44/containers/json?health=unhealthy")
+func restartContainers(url string) {
+	containerUrl := fmt.Sprintf("%s/v1.44/containers", url)
+	resp, err := http.Get(containerUrl + "/json?health=unhealthy")
 	if err != nil {
 		log.Fatalf("http:get %s", err)
 	}
@@ -39,7 +40,7 @@ func killContainers(url string) {
 	fmt.Printf("%s", containers)
 
 	for _, container := range containers {
-		var s string = fmt.Sprintf("%s/v1.44/containers/%s/restart", url, container.Id)
+		var s = fmt.Sprintf("%s/%s/restart", containerUrl, container.Id)
 		req, err := http.Post(s, "text/plain", nil)
 		if err != nil {
 			log.Fatal(err)
@@ -62,7 +63,7 @@ func getEnvDuration(def time.Duration, env string) time.Duration {
 
 func main() {
 	dockerSocket := "http://localhost:3001"
-	interval := getEnvDuration(5.0*(time.Second), healinterval)
+	interval := getEnvDuration(5.0*(time.Second), healInterval)
 	startPeriod := getEnvDuration(time.Duration(0), healStart)
 	val, ok := os.LookupEnv(dockerSock)
 	if ok {
@@ -70,7 +71,7 @@ func main() {
 	}
 	time.Sleep(startPeriod)
 	for {
-		killContainers(dockerSocket)
+		restartContainers(dockerSocket)
 		time.Sleep(interval)
 	}
 }
